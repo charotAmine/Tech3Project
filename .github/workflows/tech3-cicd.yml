@@ -1,0 +1,36 @@
+name: Tech3Project/tech3-cicd
+on:
+  workflow_dispatch:
+jobs:
+  Build-Build:
+    runs-on: ubuntu-latest
+    env:
+      buildConfiguration: Release
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3.5.0
+    # The dotnet CLI does not accept glob patterns. Consider using a solution file to act on multiple projects at once.
+    - run: dotnet build **/*.csproj --configuration ${{ env.BuildConfiguration }}
+    - run: dotnet publish --configuration ${{ env.BuildConfiguration }} --output ${{ runner.temp }}
+    - uses: actions/upload-artifact@v3.1.1
+      with:
+        name: drop
+        path: "${{ runner.temp }}"
+  Deploy-Deploy:
+    needs:
+    - Build-Build
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout
+      uses: actions/checkout@v3.5.0
+    - uses: actions/download-artifact@v3.0.1
+      with:
+        name: drop
+        path: "${{ github.workspace }}"
+    - uses: azure/login@v1.4.6
+      with:
+        creds: "${{ secrets.AZURE_CREDENTIALS }}"
+    - uses: azure/webapps-deploy@v2.2.5
+      with:
+        app-name: app-tech3
+        package: "${{ github.workspace }}/drop/src.zip"
